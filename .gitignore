@@ -1,0 +1,35 @@
+# Dependencies & caches
+node_modules/
+.remotion/
+.cache/
+
+# Local renders & temporary outputs
+out/
+renders/
+dist/
+chunks/
+*.mp4
+*.mov
+*.mkv
+*.webm
+.work*/
+
+# Local TTS caches & generated audio (keep assets/voice_ref.wav tracked!)
+.tts_cache/
+audio/
+__pycache__/
+*.py[cod]
+
+# Secrets & environment files (safe for public GitHub repo)
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*credentials*.json
+*secrets*.json
+kaggle.json
+
+# OS artifacts
+.DS_Store
+Thumbs.db

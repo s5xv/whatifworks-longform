@@ -1,0 +1,31 @@
+{
+  "title": "What If Gravity Flipped For 60 Seconds?",
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "internalWidth": 640,
+  "internalHeight": 360,
+  "daylightRules": {
+    "minHemisphereLight": 1.4,
+    "minMeanBrightness": 55,
+    "maxCrtOverlayOpacity": 0.25
+  },
+  "chapters": [
+    {
+      "id": "ch01",
+      "title": "Chapter 1: Everything Lifts",
+      "durationSec": 65,
+      "mood": "hook",
+      "skyColor": "#4f86d8",
+      "fogColor": "#6ca0e8"
+    },
+    {
+      "id": "ch02",
+      "title": "Chapter 2: Atmospheric Escape",
+      "durationSec": 75,
+      "mood": "panic",
+      "skyColor": "#3c6cb8",
+      "fogColor": "#5888d4"
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+name: Render Matrix (16:9 PS1 Long-Form)
+
+on:
+  workflow_dispatch:
+    inputs:
+      composition:
+        description: "Remotion composition ID (LongFormMain or chapter ID e.g. ch01)"
+        required: true
+        default: "LongFormMain"
+        type: string
+      workers:
+        description: "Number of parallel workers (1-20)"
+        required: true
+        default: 15
+        type: number
+      output_name:
+        description: "Output MP4 filename (without .mp4)"
+        required: true
+        default: "episode"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.calc.outputs.matrix }}
+      total_frames: ${{ steps.calc.outputs.total_frames }}
+      worker_count: ${{ steps.calc.outputs.worker_count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (with npm cache)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure Remotion headless browser
+        run: npx remotion browser ensure
+
+      - name: Compute frame chunks
+        id: calc
+        env:
+          COMPOSITION: ${{ inputs.composition }}
+          WORKERS: ${{ inputs.workers }}
+        run: node scripts/plan_matrix.mjs
+
+  render:
+    name: Render Chunk ${{ matrix.chunk.padded }} (${{ matrix.chunk.start }}-${{ matrix.chunk.end }})
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        chunk: ${{ fromJson(needs.plan.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (with npm cache)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure Remotion headless browser
+        run: npx remotion browser ensure
+
+      - name: Render 640x360 PS1 chunk (${{ matrix.chunk.start }}-${{ matrix.chunk.end }})
+        run: |
+          mkdir -p out
+          # --gl=swangle runs SwiftShader via ANGLE (required by Chrome Headless Shell for WebGL)
+          npx remotion render longform/index.ts "${{ inputs.composition }}" \
+            "out/chunk_${{ matrix.chunk.padded }}.mp4" \
+            --frames="${{ matrix.chunk.start }}-${{ matrix.chunk.end }}" \
+            --scale=0.3333333333333333 \
+            --gl=swangle \
+            --concurrency=3 \
+            --codec=h264 \
+            --crf=18
+
+      - name: Upload chunk artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chunk-${{ matrix.chunk.padded }}
+          path: out/chunk_${{ matrix.chunk.padded }}.mp4
+          retention-days: 1
+          if-no-files-found: error
+
+  stitch:
+    name: Stitch & Upscale 1080p
+    needs: render
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all rendered chunks
+        uses: actions/download-artifact@v4
+        with:
+          pattern: chunk-*
+          path: chunks
+          merge-multiple: true
+
+      - name: Ensure FFmpeg is available
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+      - name: Stitch chunks and upscale 640x360 -> 1920x1080
+        env:
+          RAW_NAME: ${{ inputs.output_name }}
+        run: |
+          SAFE_NAME=$(printf '%s' "$RAW_NAME" | tr -cd 'A-Za-z0-9._-')
+          [ -n "$SAFE_NAME" ] || SAFE_NAME="episode"
+          echo "OUTPUT_NAME=$SAFE_NAME" >> "$GITHUB_ENV"
+
+          mkdir -p out
+          LC_ALL=C ls -1 chunks/chunk_*.mp4 | sort | sed "s|^chunks/|file '|; s|$|'|" > chunks/concat.txt
+          cat chunks/concat.txt
+
+          ffmpeg -y -f concat -safe 0 -i chunks/concat.txt \
+            -vf "scale=1920:1080:flags=neighbor" \
+            -r 30 -c:v libx264 -crf 18 -preset fast -pix_fmt yuv420p \
+            -c:a aac -b:a 192k \
+            -movflags +faststart \
+            "out/${SAFE_NAME}.mp4"
+
+          ffprobe -hide_banner -v error -show_entries stream=width,height,r_frame_rate,codec_name -show_entries format=duration "out/${SAFE_NAME}.mp4"
+
+      - name: Upload final 1080p episode
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.OUTPUT_NAME }}
+          path: out/${{ env.OUTPUT_NAME }}.mp4
+          retention-days: 7
+          if-no-files-found: error

@@ -1,0 +1,30 @@
+{
+  "name": "whatifworks-longform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "16:9 Modular Long-Form PS1 Remotion Pipeline for /whatifworks",
+  "scripts": {
+    "studio": "remotion studio longform/index.ts",
+    "compositions": "remotion compositions longform/index.ts",
+    "render": "remotion render longform/index.ts LongFormMain out/episode.mp4",
+    "render:ps1": "remotion render longform/index.ts LongFormMain out/episode_360p.mp4 --scale=0.3333333333333333 --gl=swangle",
+    "render:cloud": "bash scripts/cloud_render.sh",
+    "typecheck": "tsc --noEmit",
+    "plan": "node scripts/plan_matrix.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.5",
+    "@types/three": "^0.170.0",
+    "typescript": "^5.7.2"
+  }
+}
