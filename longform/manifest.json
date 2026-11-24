@@ -1,5 +1,5 @@
 {
-  "title": "What If Gravity Flipped For 60 Seconds?",
+  "title": "What If the Earth Stopped Spinning for 60 Seconds?",
   "fps": 30,
   "width": 1920,
   "height": 1080,
@@ -13,23 +13,53 @@
   "chapters": [
     {
       "id": "ch01",
-      "title": "Chapter 1: Everything Lifts",
-      "durationSec": 65,
+      "title": "Chapter 1: The Instant Brake",
+      "durationSec": 61.2,
       "mood": "hook",
-      "skyColor": "#4f86d8",
-      "fogColor": "#6ca0e8",
+      "skyColor": "#5da2e8",
+      "fogColor": "#84bcf2",
       "audio": "audio/ch01.mp3",
       "words": "audio/ch01.words.json"
     },
     {
       "id": "ch02",
-      "title": "Chapter 2: Atmospheric Escape",
-      "durationSec": 75,
+      "title": "Chapter 2: Supersonic Winds & Flying Debris",
+      "durationSec": 58.1,
       "mood": "panic",
-      "skyColor": "#3c6cb8",
-      "fogColor": "#5888d4",
-      "audio": null,
-      "words": null
+      "skyColor": "#487fd1",
+      "fogColor": "#73a4e6",
+      "audio": "audio/ch02.mp3",
+      "words": "audio/ch02.words.json"
+    },
+    {
+      "id": "ch03",
+      "title": "Chapter 3: Megatsunamis & Shifting Oceans",
+      "durationSec": 56.5,
+      "mood": "explain",
+      "skyColor": "#3e96dc",
+      "fogColor": "#72baf0",
+      "audio": "audio/ch03.mp3",
+      "words": "audio/ch03.words.json"
+    },
+    {
+      "id": "ch04",
+      "title": "Chapter 4: Six-Month Days & Scorching Heat",
+      "durationSec": 53.6,
+      "mood": "explain",
+      "skyColor": "#e09f4a",
+      "fogColor": "#f0bd73",
+      "audio": "audio/ch04.mp3",
+      "words": "audio/ch04.words.json"
+    },
+    {
+      "id": "ch05",
+      "title": "Chapter 5: The 60-Second Restart",
+      "durationSec": 55.4,
+      "mood": "deadpan",
+      "skyColor": "#558de0",
+      "fogColor": "#7eaee8",
+      "audio": "audio/ch05.mp3",
+      "words": "audio/ch05.words.json"
     }
   ]
 }

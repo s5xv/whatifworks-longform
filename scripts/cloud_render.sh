@@ -14,7 +14,8 @@ if [ -z "$GH_BIN" ]; then
 fi
 
 COMP="LongFormMain"
-WORKERS="15"
+WORKERS=""
+WORKERS_SET=0
 OUTPUT_NAME="episode"
 COMMIT_MSG="Update episode for cloud render"
 DO_PUSH=1
@@ -24,7 +25,7 @@ POSITIONAL=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -c|--composition) COMP="$2"; shift 2 ;;
-    -w|--workers)     WORKERS="$2"; shift 2 ;;
+    -w|--workers)     WORKERS="$2"; WORKERS_SET=1; shift 2 ;;
     -o|--output)      OUTPUT_NAME="$2"; shift 2 ;;
     -m|--message)     COMMIT_MSG="$2"; shift 2 ;;
     --no-push)        DO_PUSH=0; shift ;;
@@ -37,12 +38,29 @@ while [ $# -gt 0 ]; do
 done
 
 if [ ${#POSITIONAL[@]} -ge 1 ]; then COMP="${POSITIONAL[0]}"; fi
-if [ ${#POSITIONAL[@]} -ge 2 ]; then WORKERS="${POSITIONAL[1]}"; fi
+if [ ${#POSITIONAL[@]} -ge 2 ]; then WORKERS="${POSITIONAL[1]}"; WORKERS_SET=1; fi
 if [ ${#POSITIONAL[@]} -ge 3 ]; then OUTPUT_NAME="${POSITIONAL[2]}"; fi
+
+# Auto-scale GitHub Actions workers: 5 for single chapter, 15 for LongFormMain
+if [ "$WORKERS_SET" -eq 0 ] || [ -z "$WORKERS" ]; then
+  if [ "$COMP" = "LongFormMain" ]; then
+    WORKERS="15"
+  else
+    WORKERS="5"
+  fi
+fi
 
 # Sanitize output name to match render_matrix.yml stitch step
 SAFE_NAME="$(printf '%s' "$OUTPUT_NAME" | tr -cd 'A-Za-z0-9._-')"
 [ -n "$SAFE_NAME" ] || SAFE_NAME="episode"
+
+# Mandatory Pre-Flight QA Gate before git push / cloud render
+echo "[cloud_render] Running pre-flight QA gate (composition=$COMP)..."
+if [ "$COMP" = "LongFormMain" ]; then
+  node "$ROOT_DIR/scripts/qa_longform.mjs"
+else
+  node "$ROOT_DIR/scripts/qa_longform.mjs" --chapter "$COMP"
+fi
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
@@ -127,3 +145,24 @@ if command -v ffprobe >/dev/null 2>&1; then
     -show_entries format=duration,size \
     "$FINAL_MP4"
 fi
+
+echo ""
+echo "=== YouTube Chapters ==="
+node -e '
+const fs = require("fs");
+const m = JSON.parse(fs.readFileSync("longform/manifest.json", "utf8"));
+const fmt = (s) => {
+  const sec = Math.round(s);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const r = sec % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`
+    : `${m}:${String(r).padStart(2, "0")}`;
+};
+let cur = 0;
+for (const ch of m.chapters || []) {
+  console.log(`${fmt(cur)} ${ch.title}`);
+  cur += Number(ch.durationSec) || 0;
+}
+'

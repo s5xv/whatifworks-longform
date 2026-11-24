@@ -10,6 +10,7 @@
     "render:ps1": "remotion render longform/index.ts LongFormMain out/episode.mp4 --scale=1 --gl=swangle",
     "render:cloud": "bash scripts/cloud_render.sh",
     "typecheck": "tsc --noEmit",
+    "qa": "node scripts/qa_longform.mjs",
     "plan": "node scripts/plan_matrix.mjs"
   },
   "dependencies": {
