@@ -14,9 +14,11 @@ chunks/
 *.webm
 .work*/
 
-# Local TTS caches & generated audio (keep assets/voice_ref.wav tracked!)
+# Local TTS caches & scratch audio (keep assets/voice_ref.wav & public/audio/ tracked!)
 .tts_cache/
-audio/
+/audio/
+!public/audio/
+!public/audio/**
 __pycache__/
 *.py[cod]
 

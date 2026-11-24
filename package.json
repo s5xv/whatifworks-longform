@@ -7,7 +7,7 @@
     "studio": "remotion studio longform/index.ts",
     "compositions": "remotion compositions longform/index.ts",
     "render": "remotion render longform/index.ts LongFormMain out/episode.mp4",
-    "render:ps1": "remotion render longform/index.ts LongFormMain out/episode_360p.mp4 --scale=0.3333333333333333 --gl=swangle",
+    "render:ps1": "remotion render longform/index.ts LongFormMain out/episode.mp4 --scale=1 --gl=swangle",
     "render:cloud": "bash scripts/cloud_render.sh",
     "typecheck": "tsc --noEmit",
     "plan": "node scripts/plan_matrix.mjs"

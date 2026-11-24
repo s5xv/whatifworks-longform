@@ -15,7 +15,13 @@ export const LongFormMain: React.FC = () => {
         const frames = Math.round(ch.durationSec * fps);
         return (
           <Series.Sequence key={ch.id} durationInFrames={frames}>
-            <Comp title={ch.title} skyColor={ch.skyColor} fogColor={ch.fogColor} />
+            <Comp
+              title={ch.title}
+              skyColor={ch.skyColor}
+              fogColor={ch.fogColor}
+              audioPath={ch.audio}
+              wordsPath={ch.words}
+            />
           </Series.Sequence>
         );
       })}

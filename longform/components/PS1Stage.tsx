@@ -3,8 +3,8 @@ import * as THREE from 'three';
 import { useCurrentFrame, useVideoConfig } from 'remotion';
 import { applyPS1Material } from '../three/ps1-shader';
 
-export const PS1_INTERNAL_WIDTH = 640;
-export const PS1_INTERNAL_HEIGHT = 360;
+export const PS1_INTERNAL_WIDTH = 960;
+export const PS1_INTERNAL_HEIGHT = 540;
 
 export const DAYLIGHT_RULES = {
   MIN_HEMISPHERE_INTENSITY: 1.4,
@@ -58,7 +58,7 @@ export const PS1Stage: React.FC<PS1StageProps> = ({
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
-      antialias: false,
+      antialias: true,
       powerPreference: 'high-performance',
       preserveDrawingBuffer: true,
     });

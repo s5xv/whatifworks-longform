@@ -40,6 +40,8 @@ export const RemotionRoot: React.FC = () => {
                 title: ch.title,
                 skyColor: ch.skyColor,
                 fogColor: ch.fogColor,
+                audioPath: ch.audio,
+                wordsPath: ch.words,
               }}
             />
           );

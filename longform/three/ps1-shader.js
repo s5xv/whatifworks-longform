@@ -1,11 +1,11 @@
 /**
- * ps1-shader.js (16:9 640x360 PS1 preset)
+ * ps1-shader.js (16:9 960x540 PS1 preset)
  * Authentic retro PS1 vertex-snap and 4x4 Bayer ordered dithering shader patch.
  */
 
 export function applyPS1Material(mat, opts = {}) {
-  const snapX = opts.snapX || 320.0; // 640 / 2
-  const snapY = opts.snapY || 180.0; // 360 / 2
+  const snapX = opts.snapX || 480.0; // 960 / 2
+  const snapY = opts.snapY || 270.0; // 540 / 2
   const colorLevels = opts.colorLevels || 31.0;
 
   mat.onBeforeCompile = (shader) => {

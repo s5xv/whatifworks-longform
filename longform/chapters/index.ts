@@ -7,6 +7,8 @@ export interface ChapterComponentProps {
   title?: string;
   skyColor?: string;
   fogColor?: string;
+  audioPath?: string | null;
+  wordsPath?: string | null;
   words?: WordTiming[];
 }
 

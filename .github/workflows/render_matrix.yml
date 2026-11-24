@@ -78,18 +78,18 @@ jobs:
       - name: Ensure Remotion headless browser
         run: npx remotion browser ensure
 
-      - name: Render 640x360 PS1 chunk (${{ matrix.chunk.start }}-${{ matrix.chunk.end }})
+      - name: Render native 1920x1080 chunk (${{ matrix.chunk.start }}-${{ matrix.chunk.end }})
         run: |
           mkdir -p out
           # --gl=swangle runs SwiftShader via ANGLE (required by Chrome Headless Shell for WebGL)
           npx remotion render longform/index.ts "${{ inputs.composition }}" \
             "out/chunk_${{ matrix.chunk.padded }}.mp4" \
             --frames="${{ matrix.chunk.start }}-${{ matrix.chunk.end }}" \
-            --scale=0.3333333333333333 \
+            --scale=1 \
             --gl=swangle \
             --concurrency=3 \
             --codec=h264 \
-            --crf=18
+            --crf=17
 
       - name: Upload chunk artifact
         uses: actions/upload-artifact@v4
@@ -100,7 +100,7 @@ jobs:
           if-no-files-found: error
 
   stitch:
-    name: Stitch & Upscale 1080p
+    name: Stitch 1080p
     needs: render
     runs-on: ubuntu-latest
     steps:
@@ -118,7 +118,7 @@ jobs:
             sudo apt-get install -y ffmpeg
           fi
 
-      - name: Stitch chunks and upscale 640x360 -> 1920x1080
+      - name: Stitch native 1920x1080 chunks
         env:
           RAW_NAME: ${{ inputs.output_name }}
         run: |
@@ -127,12 +127,30 @@ jobs:
           echo "OUTPUT_NAME=$SAFE_NAME" >> "$GITHUB_ENV"
 
           mkdir -p out
+          # Normalize chunks if some chapters have audio and others are silent
+          HAS_AUDIO=0
+          for f in chunks/chunk_*.mp4; do
+            if [ -n "$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$f")" ]; then
+              HAS_AUDIO=1
+              break
+            fi
+          done
+          if [ "$HAS_AUDIO" -eq 1 ]; then
+            for f in chunks/chunk_*.mp4; do
+              if [ -z "$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$f")" ]; then
+                DUR=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$f")
+                ffmpeg -y -v error -i "$f" -f lavfi -t "$DUR" -i "anullsrc=channel_layout=stereo:sample_rate=48000" \
+                  -c:v copy -c:a aac -b:a 192k -shortest "${f%.mp4}_aud.mp4"
+                mv -f "${f%.mp4}_aud.mp4" "$f"
+              fi
+            done
+          fi
+
           LC_ALL=C ls -1 chunks/chunk_*.mp4 | sort | sed "s|^chunks/|file '|; s|$|'|" > chunks/concat.txt
           cat chunks/concat.txt
 
           ffmpeg -y -f concat -safe 0 -i chunks/concat.txt \
-            -vf "scale=1920:1080:flags=neighbor" \
-            -r 30 -c:v libx264 -crf 18 -preset fast -pix_fmt yuv420p \
+            -r 30 -c:v libx264 -crf 17 -preset fast -pix_fmt yuv420p \
             -c:a aac -b:a 192k \
             -movflags +faststart \
             "out/${SAFE_NAME}.mp4"
