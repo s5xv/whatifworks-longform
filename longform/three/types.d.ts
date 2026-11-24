@@ -43,5 +43,5 @@ export const WATT: Record<string, number>;
 export function createWatt(options?: { ps1Shader?: <T extends THREE.Material>(m: T) => T }): WattInstance;
 export function applyPS1Material<T extends THREE.Material>(
   mat: T,
-  opts?: { snapX?: number; snapY?: number; colorLevels?: number }
+  opts?: { disableSnap?: boolean; snapX?: number; snapY?: number; colorLevels?: number }
 ): T;

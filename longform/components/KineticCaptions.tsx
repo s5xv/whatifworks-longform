@@ -44,7 +44,8 @@ export const KineticCaptions: React.FC<KineticCaptionsProps> = ({ words = [], fa
         justifyContent: 'center',
         alignItems: 'center',
         flexWrap: 'wrap',
-        gap: '14px',
+        columnGap: '28px',
+        rowGap: '12px',
         pointerEvents: 'none',
         zIndex: 10,
         fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -57,12 +58,16 @@ export const KineticCaptions: React.FC<KineticCaptionsProps> = ({ words = [], fa
             <span
               key={`${item.s}-${i}`}
               style={{
+                display: 'inline-block',
+                margin: '0 6px',
+                padding: '0 4px',
                 fontSize: 56,
                 fontWeight: 900,
-                letterSpacing: '0.02em',
+                letterSpacing: '0.03em',
                 textTransform: 'uppercase',
                 color: isActive ? '#80C7FF' : '#FFFFFF',
-                transform: isActive ? 'scale(1.12)' : 'scale(1.0)',
+                transform: isActive ? 'scale(1.08)' : 'scale(1.0)',
+                transformOrigin: 'center center',
                 textShadow:
                   '-3px -3px 0 #0b1020, 3px -3px 0 #0b1020, -3px 3px 0 #0b1020, 3px 3px 0 #0b1020, 0 6px 14px rgba(0,0,0,0.55)',
               }}

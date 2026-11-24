@@ -3,8 +3,8 @@
   "fps": 30,
   "width": 1920,
   "height": 1080,
-  "internalWidth": 960,
-  "internalHeight": 540,
+  "internalWidth": 1920,
+  "internalHeight": 1080,
   "daylightRules": {
     "minHemisphereLight": 1.4,
     "minMeanBrightness": 55,

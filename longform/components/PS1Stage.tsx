@@ -3,8 +3,8 @@ import * as THREE from 'three';
 import { useCurrentFrame, useVideoConfig } from 'remotion';
 import { applyPS1Material } from '../three/ps1-shader';
 
-export const PS1_INTERNAL_WIDTH = 960;
-export const PS1_INTERNAL_HEIGHT = 540;
+export const PS1_INTERNAL_WIDTH = 1920;
+export const PS1_INTERNAL_HEIGHT = 1080;
 
 export const DAYLIGHT_RULES = {
   MIN_HEMISPHERE_INTENSITY: 1.4,
@@ -88,7 +88,7 @@ export const PS1Stage: React.FC<PS1StageProps> = ({
     scene.add(rimLight);
 
     const ps1 = <T extends THREE.Material>(mat: T): T =>
-      applyPS1Material(mat, { snapX: PS1_INTERNAL_WIDTH / 2, snapY: PS1_INTERNAL_HEIGHT / 2, colorLevels: 31 });
+      applyPS1Material(mat, { disableSnap: true, colorLevels: 63 });
 
     const ctx: PS1SceneContext = { scene, camera, hemiLight, keyLight, rimLight, ps1 };
     onBuildScene(ctx);
@@ -131,7 +131,6 @@ export const PS1Stage: React.FC<PS1StageProps> = ({
           width: '100%',
           height: '100%',
           display: 'block',
-          imageRendering: 'pixelated',
         }}
       />
       <div

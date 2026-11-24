@@ -1,24 +1,28 @@
 /**
- * ps1-shader.js (16:9 960x540 PS1 preset)
- * Authentic retro PS1 vertex-snap and 4x4 Bayer ordered dithering shader patch.
+ * ps1-shader.js (16:9 1080p smooth PS1 preset)
+ * Disables coarse vertex-snapping by default for crisp 16:9 edges while preserving
+ * subtle 4x4 Bayer ordered dithering.
  */
 
 export function applyPS1Material(mat, opts = {}) {
-  const snapX = opts.snapX || 480.0; // 960 / 2
-  const snapY = opts.snapY || 270.0; // 540 / 2
-  const colorLevels = opts.colorLevels || 31.0;
+  const disableSnap = opts.disableSnap !== undefined ? Boolean(opts.disableSnap) : true;
+  const snapX = opts.snapX || 960.0;
+  const snapY = opts.snapY || 540.0;
+  const colorLevels = opts.colorLevels || 63.0;
 
   mat.onBeforeCompile = (shader) => {
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <project_vertex>',
-      `
-      #include <project_vertex>
-      if (gl_Position.w > 0.0) {
-        vec2 sn = vec2(${snapX.toFixed(1)}, ${snapY.toFixed(1)});
-        gl_Position.xy = floor(gl_Position.xy / gl_Position.w * sn + 0.5) / sn * gl_Position.w;
-      }
-      `
-    );
+    if (!disableSnap && snapX > 0 && snapY > 0) {
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <project_vertex>',
+        `
+        #include <project_vertex>
+        if (gl_Position.w > 0.0) {
+          vec2 sn = vec2(${snapX.toFixed(1)}, ${snapY.toFixed(1)});
+          gl_Position.xy = floor(gl_Position.xy / gl_Position.w * sn + 0.5) / sn * gl_Position.w;
+        }
+        `
+      );
+    }
 
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <dithering_fragment>',
@@ -38,6 +42,6 @@ export function applyPS1Material(mat, opts = {}) {
       `
     );
   };
-  mat.customProgramCacheKey = () => `ps1_${snapX}_${snapY}_${colorLevels}`;
+  mat.customProgramCacheKey = () => `ps1_${disableSnap ? 'nosnap' : `${snapX}_${snapY}`}_${colorLevels}`;
   return mat;
 }
