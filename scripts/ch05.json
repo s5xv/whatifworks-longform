@@ -1,22 +1,22 @@
 [
   {
-    "mood": "hook",
-    "text": "Just when you think you have survived sixty seconds of chaos, the universe hits the restart button."
-  },
-  {
-    "mood": "panic",
-    "text": "At the sixty-second mark, the Earth violently snaps back to one thousand forty miles per hour eastward. Now the ground lurches forward underneath you, slamming everything backward toward the west in a second cataclysmic jolt."
+    "mood": "explain",
+    "text": "In the movies, a billionaire in a cape crashes through your skylight to save the world. In real life, your villain downfall is way less dramatic."
   },
   {
     "mood": "explain",
-    "text": "Oceans that were rushing toward the poles abruptly slam back toward the equator, triggering a second round of planetary megatsunamis. Buildings that survived the first hit now get sheared in the opposite direction."
+    "text": "First, the tax agency flags nearly two billion dollars of unexplained volcano construction with zero filings. Next, the electric utility sends a technician in a pickup truck to disconnect your unpaid power meter."
+  },
+  {
+    "mood": "panic",
+    "text": "Before a single hero arrives, federal marshals, aviation regulators, and local building inspectors freeze your bank accounts, tow your getaway trucks, and slap a heavy padlock right on your secret front door."
   },
   {
     "mood": "deadpan",
-    "text": "And when the dust finally settles, the Earth is spinning normally again—except every city is a pile of rubble, the beaches are in the wrong hemisphere, and your coffee mug is still missing."
+    "text": "Turns out the deadliest force on Earth is not a death laser. It is compound interest, missing paperwork, and an unimpressed tax auditor."
   },
   {
     "mood": "deadpan",
-    "text": "So here is the real question: if you got a ten-second warning before the spin stopped, where would you hide—deep underground, in a submarine, or at the North Pole? Drop your survival plan in the comments."
+    "text": "So here is the real question: if you had a secret villain budget, which problem would ruin you first, the tax audit, the electric bill, or your own henchmen? Drop your answer in the comments."
   }
 ]

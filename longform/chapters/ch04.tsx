@@ -1,25 +1,24 @@
-import React, { useCallback, useMemo, useRef } from 'react';
-import * as THREE from 'three';
+import React, { useCallback, useMemo } from 'react';
 import { useVideoConfig } from 'remotion';
-import { PS1Stage, PS1SceneContext } from '../components/PS1Stage';
+import { Stage2D, STAGE2D_FLOOR_Y } from '../components/Stage2D';
+import { drawWatt2D, Watt2DPose } from '../components/Watt2D';
+import {
+  createCamera2DSchedule,
+  cueCamera2DAt,
+  Camera2DState,
+} from '../components/camera2D';
 import { KineticCaptions } from '../components/KineticCaptions';
 import { ChapterCard } from '../components/ChapterCard';
 import { TelemetryHUD, TelemetryWidgetSpec } from '../components/TelemetryHUD';
 import { AudioTrack, buildSfxCue } from '../components/AudioTrack';
 import { useChapterWords } from '../components/useChapterWords';
-import { createWatt, WattInstance } from '../three/watt-model';
-import {
-  createCameraSchedule,
-  cueCameraAt,
-  updateCameraDirector,
-} from '../three/cameraDirector';
 import { cueAt } from '../three/timing';
 import { ChapterComponentProps } from './index';
 
 export const Chapter04: React.FC<ChapterComponentProps> = ({
-  title = 'Chapter 4: Six-Month Days & Scorching Heat',
-  skyColor = '#e09f4a',
-  fogColor = '#f0bd73',
+  title = 'Chapter 4: Holding the World Hostage',
+  skyColor = '#5798e6',
+  fogColor = '#c8e2ff',
   audioPath,
   wordsPath,
   words: wordsProp = [],
@@ -29,195 +28,281 @@ export const Chapter04: React.FC<ChapterComponentProps> = ({
   const loadedWords = useChapterWords(wordsPath);
   const words = wordsProp.length > 0 ? wordsProp : loadedWords;
 
-  const heatSec = useMemo(() => cueAt(words, 'six-month', 18.0), [words]);
-  const solarSec = useMemo(() => cueAt(words, 'solar', Math.max(38, durationSec - 10)), [words, durationSec]);
+  const weightSec = useMemo(() => cueAt(words, 'eleven', 13.0), [words]);
+  const cryptoSec = useMemo(() => cueAt(words, 'cryptocurrency', 27.0), [words]);
+  const jetSec = useMemo(() => cueAt(words, 'forty-two', 38.0), [words]);
+  const trafficSec = useMemo(() => cueAt(words, 'traffic', Math.max(46, durationSec - 9)), [words, durationSec]);
 
   const cameraSchedule = useMemo(
     () =>
-      createCameraSchedule(
-        durationSec,
-        [
-          cueCameraAt(words, 'thermostat', 'wide', 7.5, { fallbackStartSec: 0 }),
-          cueCameraAt(words, 'midday', 'dollyIn', 8.0, { fallbackStartSec: 8.0 }),
-          cueCameraAt(words, 'six-month', 'orbit', 8.0, { fallbackStartSec: 18.0 }),
-          cueCameraAt(words, 'amber', 'impactShake', 6.5, { fallbackStartSec: 28.0, intensity: 1.05 }),
-          cueCameraAt(words, 'solar', 'closeup', 8.5, { fallbackStartSec: Math.max(38, durationSec - 10) }),
-        ],
-        7.5
-      ),
-    [durationSec, words]
+      createCamera2DSchedule(durationSec, [
+        cueCamera2DAt(words, 'United', 'wide', 5.5, { fallbackStartSec: 0 }),
+        cueCamera2DAt(words, 'eleven', 'zoomIn', 5.5, {
+          fallbackStartSec: weightSec,
+          focusX: 460,
+          focusY: 620,
+          zoom: 1.2,
+        }),
+        cueCamera2DAt(words, 'cryptocurrency', 'pan', 5.5, {
+          fallbackStartSec: cryptoSec,
+          panX: 120,
+        }),
+        cueCamera2DAt(words, 'forty-two', 'impactShake', 5.0, {
+          fallbackStartSec: jetSec,
+          intensity: 1.3,
+        }),
+        cueCamera2DAt(words, 'traffic', 'zoomIn', 6.5, {
+          fallbackStartSec: trafficSec - 3,
+          focusX: 1120,
+          focusY: 660,
+          zoom: 1.22,
+        }),
+      ]),
+    [durationSec, words, weightSec, cryptoSec, jetSec, trafficSec]
   );
 
   const sfxCues = useMemo(
     () => [
-      buildSfxCue(words, 'sun', 'chime', { fallbackSec: 6.0, volume: 0.55 }),
-      buildSfxCue(words, 'six-month', 'alarm', { fallbackSec: 18.0, volume: 0.52 }),
-      buildSfxCue(words, 'dust', 'whoosh', { fallbackSec: 27.0, volume: 0.6 }),
-      buildSfxCue(words, 'solar', 'impact', { fallbackSec: Math.max(38, durationSec - 10), volume: 0.68 }),
+      buildSfxCue(words, 'trillion', 'chime', { fallbackSec: 5.5, volume: 0.55 }),
+      buildSfxCue(words, 'eleven', 'impact', { fallbackSec: weightSec, volume: 0.72 }),
+      buildSfxCue(words, 'forty-two', 'alarm', { fallbackSec: jetSec, volume: 0.75 }),
+      buildSfxCue(words, 'fighter', 'whoosh', { fallbackSec: jetSec + 2.5, volume: 0.65 }),
     ],
-    [words, durationSec]
+    [words, weightSec, jetSec]
   );
 
   const hudWidgets = useMemo<TelemetryWidgetSpec[]>(
     () => [
       {
-        id: 'temp',
-        kind: 'gauge',
-        label: 'Surface Temp',
-        unit: '°F',
-        min: 50,
-        max: 165,
-        decimals: 0,
-        triggerSec: 0.5,
-        keyframes: [
-          { timeSec: 0.5, value: 72, severity: 'normal' },
-          { word: 'six-month', timeSec: 18.0, value: 138, severity: 'warn' },
-          { word: 'amber', timeSec: 30.0, value: 156, severity: 'critical' },
-        ],
-      },
-      {
-        id: 'daylight',
+        id: 'cash-weight',
         kind: 'counter',
-        label: 'Daylight Lock',
-        unit: 'hr',
+        label: 'CASH WEIGHT',
+        unit: 'TONS',
         min: 0,
-        max: 4380,
+        max: 12000,
         decimals: 0,
-        triggerSec: 2.0,
+        triggerSec: 0.6,
         keyframes: [
-          { timeSec: 2.0, value: 12, severity: 'normal' },
-          { word: 'six-month', timeSec: 20.0, value: 4380, severity: 'critical' },
+          { timeSec: 0.6, value: 100, severity: 'normal' },
+          { timeSec: weightSec, value: 11000, severity: 'critical' },
         ],
       },
       {
-        id: 'solar',
+        id: 'monologue-time',
+        kind: 'counter',
+        label: 'MONOLOGUE TIME',
+        displayMode: 'mmss',
+        min: 0,
+        max: 60,
+        decimals: 0,
+        triggerSec: 1.5,
+        keyframes: [
+          { timeSec: 1.5, value: 0, severity: 'normal' },
+          { timeSec: jetSec, value: 42, severity: 'critical' },
+        ],
+      },
+      {
+        id: 'van-badge',
         kind: 'badge',
-        label: 'Solar Load',
-        badgeText: 'EXTREME',
+        label: 'GETAWAY VAN',
+        badgeText: 'CRUSHED (11,000T)',
         severity: 'critical',
-        triggerSec: 4.0,
+        triggerSec: weightSec + 1.5,
       },
     ],
-    []
+    [weightSec, jetSec]
   );
 
-  const objectsRef = useRef<{
-    watt: WattInstance;
-    sunDisc: THREE.Mesh;
-    solarPanel: THREE.Group;
-    dustProps: THREE.Object3D[];
-  } | null>(null);
+  const onDrawScene = useCallback(
+    (ctx: CanvasRenderingContext2D, t: number) => {
+      const showMountain = t >= weightSec - 2.0;
+      const showCrypto = t >= cryptoSec && t < jetSec;
+      const jetsArrived = t >= jetSec;
+      const isDeadpanEnd = t >= trafficSec - 1.5;
 
-  const onBuildScene = useCallback((ctx: PS1SceneContext) => {
-    const { scene, ps1 } = ctx;
+      // 1. Scale Diagram: Mountain of $1T Cash (11,000 Tons) vs Tiny Getaway Van
+      ctx.save();
+      ctx.translate(455, STAGE2D_FLOOR_Y);
 
-    const sandMat = ps1(new THREE.MeshLambertMaterial({ color: 0xd99b52, flatShading: true }));
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60, 14, 14), sandMat);
-    ground.rotation.x = -Math.PI / 2;
-    scene.add(ground);
-
-    const mesaMat = ps1(new THREE.MeshLambertMaterial({ color: 0xb87035, flatShading: true }));
-    for (let i = 0; i < 6; i++) {
-      const mesa = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 2.2, 2.4 + (i % 3) * 1.1, 7), mesaMat);
-      mesa.position.set(-10 + i * 4.2, 1.2, -9.0 - (i % 2) * 3.0);
-      scene.add(mesa);
-    }
-
-    const sunMat = ps1(new THREE.MeshBasicMaterial({ color: 0xfff3b0 }));
-    const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(3.2, 16), sunMat);
-    sunDisc.position.set(2.5, 6.2, -22);
-    scene.add(sunDisc);
-
-    const watt = createWatt({ ps1Shader: ps1 });
-    watt.setPosition(0, 0, 0);
-    scene.add(watt.root);
-
-    const solarPanel = new THREE.Group();
-    const stand = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.1, 1.0, 6),
-      ps1(new THREE.MeshLambertMaterial({ color: 0x607d8b, flatShading: true }))
-    );
-    stand.position.y = 0.5;
-    const panel = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 0.08, 0.8),
-      ps1(new THREE.MeshLambertMaterial({ color: 0x1e3a8a, emissive: 0x0d2152, flatShading: true }))
-    );
-    panel.position.y = 1.02;
-    panel.rotation.x = 0.35;
-    solarPanel.add(stand, panel);
-    solarPanel.position.set(-1.9, 0, -1.5);
-    scene.add(solarPanel);
-
-    const dustProps: THREE.Object3D[] = [solarPanel];
-    const dustMat = ps1(new THREE.MeshLambertMaterial({ color: 0xf2c679, flatShading: true }));
-    for (let i = 0; i < 10; i++) {
-      const puff = new THREE.Mesh(new THREE.DodecahedronGeometry(0.32 + (i % 3) * 0.12, 0), dustMat);
-      puff.userData.baseX = -12 + i * 2.5;
-      puff.userData.baseY = 0.7 + (i % 3) * 0.55;
-      puff.userData.baseZ = -2.2 - (i % 3) * 1.2;
-      puff.userData.speed = 4.2 + (i % 4) * 1.1;
-      puff.position.set(puff.userData.baseX, puff.userData.baseY, puff.userData.baseZ);
-      scene.add(puff);
-      dustProps.push(puff);
-    }
-
-    objectsRef.current = { watt, sunDisc, solarPanel, dustProps };
-  }, []);
-
-  const onUpdateFrame = useCallback(
-    (ctx: PS1SceneContext, t: number) => {
-      const objs = objectsRef.current;
-      if (!objs) return;
-      const { watt, sunDisc, solarPanel, dustProps } = objs;
-
-      if (t < heatSec) {
-        watt.setFace('confused');
-        watt.idle(t);
-      } else if (t < solarSec) {
-        watt.setFace('scared');
-        watt.panic(t);
-      } else {
-        watt.setFace('deadpan');
-        watt.setPose('deadpan', t);
+      // Colossal mountain of stacked green cash pallets
+      const grow = showMountain ? Math.min(1, 0.35 + (t - weightSec + 2) * 0.25) : 0.35;
+      const tiers = Math.round(7 * grow);
+      for (let row = 0; row < tiers; row++) {
+        const cols = 7 - row;
+        const y = -38 - row * 44;
+        for (let c = 0; c < cols; c++) {
+          const x = (c - (cols - 1) / 2) * 78;
+          ctx.fillStyle = '#43a047';
+          ctx.strokeStyle = '#1b5e20';
+          ctx.lineWidth = 3;
+          ctx.fillRect(x - 35, y, 70, 36);
+          ctx.strokeRect(x - 35, y, 70, 36);
+          // Cash band
+          ctx.fillStyle = '#fff59d';
+          ctx.fillRect(x - 8, y, 16, 36);
+        }
       }
 
-      const pulse = 1 + Math.sin(t * 2.5) * 0.05;
-      sunDisc.scale.set(pulse, pulse, 1);
+      // Label placard on cash mountain
+      ctx.fillStyle = 'rgba(15, 26, 52, 0.88)';
+      ctx.strokeStyle = '#69F0AE';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(-185, -tiers * 44 - 72, 370, 56, 12);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#69F0AE';
+      ctx.font = '900 18px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('$1 TRILLION = 11,000 TONS', 0, -tiers * 44 - 38);
+      ctx.restore();
 
-      if (t > solarSec + 2.0) {
-        const dt = t - (solarSec + 2.0);
-        solarPanel.position.set(-1.9 + dt * 6.5, dt * 1.2, -1.5);
-        solarPanel.rotation.z = -dt * 3.5;
-      } else {
-        solarPanel.position.set(-1.9, 0, -1.5);
-        solarPanel.rotation.z = 0;
+      // 2. Tiny Getaway Minivan (squashed next to mountain!)
+      ctx.save();
+      ctx.translate(905, STAGE2D_FLOOR_Y);
+      ctx.fillStyle = '#ef5350';
+      ctx.strokeStyle = '#222633';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.roundRect(-85, -78, 170, 60, [16, 28, 6, 6]);
+      ctx.fill();
+      ctx.stroke();
+      // Window
+      ctx.fillStyle = '#b3e5fc';
+      ctx.fillRect(10, -68, 52, 28);
+      ctx.strokeRect(10, -68, 52, 28);
+      // Squashed flat tires
+      ctx.fillStyle = '#222633';
+      ctx.beginPath();
+      ctx.ellipse(-45, -8, 18, 9, 0, 0, Math.PI * 2);
+      ctx.ellipse(45, -8, 18, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#222633';
+      ctx.font = '900 15px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('VAN MAX: 1 TON', 0, -92);
+      ctx.restore();
+
+      // 3. Crypto Freeze Overlay / UN Live Broadcast Card (top-center)
+      ctx.save();
+      ctx.translate(930, 225);
+      ctx.fillStyle = 'rgba(15, 26, 52, 0.88)';
+      ctx.strokeStyle = showCrypto || jetsArrived ? '#FF5252' : '#80C7FF';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(-210, -82, 420, 164, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#FF5252';
+      ctx.beginPath();
+      ctx.roundRect(-185, -62, 74, 26, 6);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 14px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('LIVE UN', -148, -44);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 17px system-ui, sans-serif';
+      ctx.fillText(
+        showCrypto
+          ? 'CRYPTO LEDGER: TRACED & FROZEN'
+          : jetsArrived
+          ? 'SIGNAL TRIANGULATED AT 0:42!'
+          : 'BROADCASTING EVIL DEMAND...',
+        32,
+        -44
+      );
+      ctx.fillStyle = showCrypto || jetsArrived ? '#FF8A80' : '#ffd54f';
+      ctx.font = '900 22px system-ui, sans-serif';
+      ctx.fillText(
+        showCrypto
+          ? 'EXCHANGE WALLET LOCKED'
+          : jetsArrived
+          ? '500 SEMI TRUCKS + JETS INBOUND'
+          : 'DEMAND: $1,000,000,000,000',
+        0,
+        24
+      );
+      ctx.restore();
+
+      // 4. Supersonic Fighter Jets streaking overhead when monologue hits 0:42
+      if (jetsArrived) {
+        for (let j = 0; j < 2; j++) {
+          const jx = 1850 - (((t - jetSec) * 620 + j * 340) % 2100);
+          const jy = 135 + j * 65;
+          ctx.save();
+          ctx.translate(jx, jy);
+          ctx.fillStyle = '#607d8b';
+          ctx.strokeStyle = '#102027';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(-65, 0);
+          ctx.lineTo(25, -14);
+          ctx.lineTo(55, -28);
+          ctx.lineTo(40, 0);
+          ctx.lineTo(55, 22);
+          ctx.lineTo(20, 12);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          // Afterburner flame
+          ctx.fillStyle = '#ff9800';
+          ctx.beginPath();
+          ctx.moveTo(45, -6);
+          ctx.lineTo(85 + Math.sin(t * 40) * 12, 0);
+          ctx.lineTo(45, 6);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
       }
 
-      for (let i = 1; i < dustProps.length; i++) {
-        const d = dustProps[i];
-        const wx = (((d.userData.baseX + t * d.userData.speed) + 14) % 28) - 14;
-        d.position.set(wx, d.userData.baseY + Math.sin(t * 3 + i) * 0.25, d.userData.baseZ);
-        d.rotation.y = t * 1.4;
-      }
+      // 5. Watt Protagonist holding tiny empty briefcase
+      let pose: Watt2DPose = 'explain';
+      if (isDeadpanEnd) pose = 'deadpan';
+      else if (jetsArrived) pose = 'shocked';
 
-      updateCameraDirector(ctx.camera, t, cameraSchedule, watt.root.position, dustProps);
+      drawWatt2D(ctx, {
+        x: 1185,
+        y: STAGE2D_FLOOR_Y,
+        s: 360,
+        t,
+        pose,
+        outfit: 'villain',
+        flip: -1,
+      });
+
+      // Tiny black briefcase next to Watt
+      ctx.save();
+      ctx.translate(1085, STAGE2D_FLOOR_Y - 120);
+      ctx.fillStyle = '#1c2230';
+      ctx.strokeStyle = '#222633';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(-24, -18, 48, 36, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeRect(-10, -26, 20, 8);
+      ctx.restore();
     },
-    [cameraSchedule, heatSec, solarSec]
+    [weightSec, cryptoSec, jetSec, trafficSec]
   );
 
   return (
-    <PS1Stage
-      skyColor={skyColor}
-      fogColor={fogColor}
-      hemisphereIntensity={1.65}
-      crtOpacity={0.16}
-      onBuildScene={onBuildScene}
-      onUpdateFrame={onUpdateFrame}
+    <Stage2D
+      skyTop={skyColor}
+      skyBottom={fogColor}
+      horizonColor="#6388b8"
+      floorColor="#e5ecf4"
+      cameraSchedule={cameraSchedule}
+      onDrawScene={onDrawScene}
     >
       <AudioTrack audioPath={audioPath} words={words} sfxCues={sfxCues} />
-      <ChapterCard chapterNumber={4} title={title} />
-      <TelemetryHUD words={words} side="left" widgets={hudWidgets} />
-      <KineticCaptions words={words} fallbackLine="Locked midday heat spikes surface temperatures." />
-    </PS1Stage>
+      <ChapterCard chapterNumber={4} title={title} accentColor="#69F0AE" />
+      <TelemetryHUD words={words} side="right" widgets={hudWidgets} />
+      <KineticCaptions words={words} fallbackLine="One trillion dollars weighs eleven thousand tons." />
+    </Stage2D>
   );
 };

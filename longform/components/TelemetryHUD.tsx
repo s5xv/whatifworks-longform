@@ -17,7 +17,9 @@ export interface TelemetryWidgetSpec {
   id: string;
   kind: 'gauge' | 'counter' | 'badge';
   label: string;
+  prefix?: string;
   unit?: string;
+  displayMode?: 'number' | 'mmss';
   min?: number;
   max?: number;
   decimals?: number;
@@ -121,7 +123,18 @@ export const TelemetryHUD: React.FC<TelemetryHUDProps> = ({
         const min = w.min ?? 0;
         const max = w.max ?? 100;
         const pct = Math.max(0, Math.min(100, ((currentVal - min) / Math.max(1e-5, max - min)) * 100));
-        const formatted = currentVal.toFixed(w.decimals ?? 1);
+        const decimals = w.decimals ?? 1;
+        let formatted: string;
+        if (w.displayMode === 'mmss') {
+          const totalSecs = Math.max(0, Math.round(currentVal));
+          const mins = Math.floor(totalSecs / 60);
+          const secs = totalSecs % 60;
+          formatted = `${mins}:${String(secs).padStart(2, '0')}`;
+        } else if (decimals === 0 && Math.abs(currentVal) >= 1000) {
+          formatted = Math.round(currentVal).toLocaleString('en-US');
+        } else {
+          formatted = currentVal.toFixed(decimals);
+        }
 
         return (
           <div
@@ -176,6 +189,7 @@ export const TelemetryHUD: React.FC<TelemetryHUDProps> = ({
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
+                  {w.prefix ?? ''}
                   {formatted}
                   {w.unit ? (
                     <span style={{ fontSize: 13, marginLeft: 4, color: '#D4E4FF' }}>{w.unit}</span>

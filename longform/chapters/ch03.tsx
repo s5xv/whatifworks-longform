@@ -1,25 +1,24 @@
-import React, { useCallback, useMemo, useRef } from 'react';
-import * as THREE from 'three';
+import React, { useCallback, useMemo } from 'react';
 import { useVideoConfig } from 'remotion';
-import { PS1Stage, PS1SceneContext } from '../components/PS1Stage';
+import { Stage2D, STAGE2D_FLOOR_Y } from '../components/Stage2D';
+import { drawWatt2D, Watt2DPose } from '../components/Watt2D';
+import {
+  createCamera2DSchedule,
+  cueCamera2DAt,
+  Camera2DState,
+} from '../components/camera2D';
 import { KineticCaptions } from '../components/KineticCaptions';
 import { ChapterCard } from '../components/ChapterCard';
 import { TelemetryHUD, TelemetryWidgetSpec } from '../components/TelemetryHUD';
 import { AudioTrack, buildSfxCue } from '../components/AudioTrack';
 import { useChapterWords } from '../components/useChapterWords';
-import { createWatt, WattInstance } from '../three/watt-model';
-import {
-  createCameraSchedule,
-  cueCameraAt,
-  updateCameraDirector,
-} from '../three/cameraDirector';
 import { cueAt } from '../three/timing';
 import { ChapterComponentProps } from './index';
 
 export const Chapter03: React.FC<ChapterComponentProps> = ({
-  title = 'Chapter 3: Megatsunamis & Shifting Oceans',
-  skyColor = '#3e96dc',
-  fogColor = '#72baf0',
+  title = 'Chapter 3: Building the Doomsday Weapon',
+  skyColor = '#4a89dc',
+  fogColor = '#cde5ff',
   audioPath,
   wordsPath,
   words: wordsProp = [],
@@ -29,185 +28,310 @@ export const Chapter03: React.FC<ChapterComponentProps> = ({
   const loadedWords = useChapterWords(wordsPath);
   const words = wordsProp.length > 0 ? wordsProp : loadedWords;
 
-  const surgeSec = useMemo(() => cueAt(words, 'megatsunamis', 18.0), [words]);
-  const gagSec = useMemo(() => cueAt(words, 'Antarctica', Math.max(38, durationSec - 10)), [words, durationSec]);
+  const powerSec = useMemo(() => cueAt(words, 'gigawatts', 12.0), [words]);
+  const tripSec = useMemo(() => cueAt(words, 'switch', 23.0), [words]);
+  const supplySec = useMemo(() => cueAt(words, 'regulators', 38.0), [words]);
+  const outletSec = useMemo(() => cueAt(words, 'toaster', Math.max(46, durationSec - 10)), [words, durationSec]);
 
   const cameraSchedule = useMemo(
     () =>
-      createCameraSchedule(
-        durationSec,
-        [
-          cueCameraAt(words, 'oceans', 'wide', 7.5, { fallbackStartSec: 0 }),
-          cueCameraAt(words, 'bulge', 'dollyIn', 8.0, { fallbackStartSec: 8.0 }),
-          cueCameraAt(words, 'megatsunamis', 'impactShake', 7.0, { fallbackStartSec: 18.0, intensity: 1.25 }),
-          cueCameraAt(words, 'poles', 'overhead', 8.5, { fallbackStartSec: 27.0 }),
-          cueCameraAt(words, 'beachfront', 'closeup', 9.0, { fallbackStartSec: Math.max(38, durationSec - 12) }),
-        ],
-        7.5
-      ),
-    [durationSec, words]
+      createCamera2DSchedule(durationSec, [
+        cueCamera2DAt(words, 'weapon', 'wide', 5.5, { fallbackStartSec: 0 }),
+        cueCamera2DAt(words, 'gigawatts', 'zoomIn', 5.5, {
+          fallbackStartSec: powerSec,
+          focusX: 460,
+          focusY: 420,
+          zoom: 1.2,
+        }),
+        cueCamera2DAt(words, 'switch', 'impactShake', 5.0, {
+          fallbackStartSec: tripSec,
+          intensity: 1.35,
+        }),
+        cueCamera2DAt(words, 'regulators', 'pan', 5.5, {
+          fallbackStartSec: supplySec - 4,
+          panX: -110,
+        }),
+        cueCamera2DAt(words, 'toaster', 'zoomIn', 6.5, {
+          fallbackStartSec: outletSec - 4,
+          focusX: 1120,
+          focusY: 660,
+          zoom: 1.24,
+        }),
+      ]),
+    [durationSec, words, powerSec, tripSec, supplySec, outletSec]
   );
 
   const sfxCues = useMemo(
     () => [
-      buildSfxCue(words, 'centrifugal', 'whoosh', { fallbackSec: 7.0, volume: 0.55 }),
-      buildSfxCue(words, 'megatsunamis', 'impact', { fallbackSec: 18.0, volume: 0.75 }),
-      buildSfxCue(words, 'poles', 'alarm', { fallbackSec: 26.0, volume: 0.5 }),
-      buildSfxCue(words, 'Antarctica', 'chime', { fallbackSec: Math.max(38, durationSec - 10), volume: 0.55 }),
+      buildSfxCue(words, 'weapon', 'whoosh', { fallbackSec: 1.5, volume: 0.55 }),
+      buildSfxCue(words, 'switch', 'impact', { fallbackSec: tripSec, volume: 0.8 }),
+      buildSfxCue(words, 'overheat', 'alarm', { fallbackSec: tripSec + 3.5, volume: 0.7 }),
+      buildSfxCue(words, 'toaster', 'chime', { fallbackSec: outletSec, volume: 0.52 }),
     ],
-    [words, durationSec]
+    [words, tripSec, outletSec]
   );
 
   const hudWidgets = useMemo<TelemetryWidgetSpec[]>(
     () => [
       {
-        id: 'bulge',
+        id: 'power-draw',
         kind: 'gauge',
-        label: 'Equator Bulge',
-        unit: 'mi',
+        label: 'POWER DRAW',
+        unit: 'GW',
         min: 0,
-        max: 13,
-        decimals: 1,
-        triggerSec: 0.5,
+        max: 1.5,
+        decimals: 2,
+        triggerSec: 0.6,
         keyframes: [
-          { timeSec: 0.5, value: 13.0, severity: 'normal' },
-          { word: 'vanishes', timeSec: 14.0, value: 0.0, severity: 'critical' },
+          { timeSec: 0.6, value: 0.05, severity: 'normal' },
+          { timeSec: powerSec, value: 1.2, severity: 'warn' },
+          { timeSec: tripSec + 0.5, value: 0.0, severity: 'critical' },
         ],
       },
       {
-        id: 'wave',
+        id: 'core-temp',
         kind: 'counter',
-        label: 'Surge Height',
-        unit: 'ft',
-        min: 0,
-        max: 6000,
+        label: 'CORE TEMP',
+        unit: '°C',
+        min: 20,
+        max: 3000,
         decimals: 0,
-        triggerSec: 2.0,
+        triggerSec: 1.5,
         keyframes: [
-          { timeSec: 2.0, value: 12, severity: 'normal' },
-          { word: 'megatsunamis', timeSec: 18.0, value: 5280, severity: 'critical' },
+          { timeSec: 1.5, value: 420, severity: 'normal' },
+          { timeSec: tripSec, value: 2800, severity: 'critical' },
         ],
       },
       {
-        id: 'flow',
+        id: 'grid-badge',
         kind: 'badge',
-        label: 'Ocean Flow',
-        badgeText: 'POLEWARD',
-        severity: 'warn',
-        triggerSec: 4.0,
+        label: 'UTILITY GRID',
+        badgeText: 'SHUT OFF',
+        severity: 'critical',
+        triggerSec: tripSec + 0.4,
       },
     ],
-    []
+    [powerSec, tripSec]
   );
 
-  const objectsRef = useRef<{
-    watt: WattInstance;
-    ocean: THREE.Mesh;
-    duck: THREE.Group;
-    props: THREE.Object3D[];
-  } | null>(null);
+  const onDrawScene = useCallback(
+    (ctx: CanvasRenderingContext2D, t: number) => {
+      const gridTripped = t >= tripSec;
+      const showToasterGag = t >= outletSec - 3.0;
 
-  const onBuildScene = useCallback((ctx: PS1SceneContext) => {
-    const { scene, ps1 } = ctx;
+      // 1. Animated Power Grid & Overheating Diagram (top-left)
+      ctx.save();
+      ctx.translate(455, 315);
+      ctx.fillStyle = 'rgba(15, 26, 52, 0.88)';
+      ctx.strokeStyle = gridTripped ? '#FF5252' : '#80C7FF';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.roundRect(-345, -145, 690, 290, 18);
+      ctx.fill();
+      ctx.stroke();
 
-    const sandMat = ps1(new THREE.MeshLambertMaterial({ color: 0xe6cf96, flatShading: true }));
-    const island = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 4.6, 0.6, 10), sandMat);
-    island.position.set(0, -0.25, 0);
-    scene.add(island);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 18px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('LOCAL UTILITY GRID vs. DOOMSDAY LASER', 0, -108);
 
-    const woodMat = ps1(new THREE.MeshLambertMaterial({ color: 0x8c6239, flatShading: true }));
-    const pier = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.22, 3.6), woodMat);
-    pier.position.set(0, 0.05, -1.2);
-    scene.add(pier);
+      // Substation Box -> Breaker -> Laser
+      ctx.fillStyle = '#1e88e5';
+      ctx.beginPath();
+      ctx.roundRect(-305, -55, 165, 92, 12);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 15px system-ui, sans-serif';
+      ctx.fillText('TOWN GRID', -222, -16);
+      ctx.fillStyle = '#ffe082';
+      ctx.fillText('MAX: 0.2 GW', -222, 10);
 
-    const oceanMat = ps1(new THREE.MeshLambertMaterial({ color: 0x1e88e5, flatShading: true }));
-    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(70, 70, 18, 18), oceanMat);
-    ocean.rotation.x = -Math.PI / 2;
-    ocean.position.set(0, -0.35, -8);
-    scene.add(ocean);
+      // Animated current line
+      ctx.strokeStyle = gridTripped ? '#FF5252' : '#69F0AE';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(-140, -10);
+      ctx.lineTo(135, -10);
+      ctx.stroke();
 
-    const watt = createWatt({ ps1Shader: ps1 });
-    watt.setPosition(0, 0, 0);
-    scene.add(watt.root);
+      // Breaker switch indicator
+      ctx.fillStyle = gridTripped ? '#d32f2f' : '#2e7d32';
+      ctx.beginPath();
+      ctx.roundRect(-62, -45, 124, 70, 10);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 15px system-ui, sans-serif';
+      ctx.fillText(gridTripped ? 'BREAKER' : 'SWITCH', 0, -14);
+      ctx.fillText(gridTripped ? 'TRIPPED!' : 'ONLINE', 0, 10);
 
-    const duck = new THREE.Group();
-    const yellowMat = ps1(new THREE.MeshLambertMaterial({ color: 0xffeb3b, flatShading: true }));
-    const orangeMat = ps1(new THREE.MeshLambertMaterial({ color: 0xff7043, flatShading: true }));
-    const duckBody = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.42, 0.8), yellowMat);
-    const duckHead = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.38), yellowMat);
-    duckHead.position.set(0, 0.35, 0.22);
-    const duckBeak = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.1, 0.2), orangeMat);
-    duckBeak.position.set(0, 0.32, 0.48);
-    duck.add(duckBody, duckHead, duckBeak);
-    duck.position.set(1.6, 0.1, -2.0);
-    scene.add(duck);
+      // Overheating Gauge Bar inside diagram
+      ctx.fillStyle = '#14203d';
+      ctx.beginPath();
+      ctx.roundRect(150, -55, 160, 92, 12);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 14px system-ui, sans-serif';
+      ctx.fillText('MIRROR TEMP', 230, -28);
+      const heatPct = gridTripped ? 0.98 : Math.min(0.8, 0.2 + t * 0.03);
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      ctx.fillRect(168, -6, 124, 22);
+      ctx.fillStyle = heatPct > 0.7 ? '#FF5252' : '#FFB74D';
+      ctx.fillRect(168, -6, 124 * heatPct, 22);
 
-    const props: THREE.Object3D[] = [duck];
-    const foamMat = ps1(new THREE.MeshLambertMaterial({ color: 0xdbf0ff, flatShading: true }));
-    for (let i = 0; i < 10; i++) {
-      const crest = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.7 + (i % 3) * 0.4, 1.1), foamMat);
-      crest.userData.baseX = -11 + i * 2.4;
-      crest.userData.baseZ = -4.5 - (i % 3) * 1.8;
-      crest.userData.phase = i * 0.6;
-      crest.position.set(crest.userData.baseX, -0.1, crest.userData.baseZ);
-      scene.add(crest);
-      props.push(crest);
-    }
-
-    objectsRef.current = { watt, ocean, duck, props };
-  }, []);
-
-  const onUpdateFrame = useCallback(
-    (ctx: PS1SceneContext, t: number) => {
-      const objs = objectsRef.current;
-      if (!objs) return;
-      const { watt, ocean, duck, props } = objs;
-
-      if (t < surgeSec) {
-        watt.setFace('confused');
-        watt.walk(t, 0.7);
-      } else if (t < gagSec) {
-        watt.setFace('scared');
-        watt.panic(t);
-      } else {
-        watt.setFace('deadpan');
-        watt.setPose('deadpan', t);
-      }
-
-      const surgeFactor = Math.max(0, Math.min(1, (t - surgeSec * 0.7) / 6.0));
-      ocean.position.y = -0.35 + surgeFactor * 0.32 + Math.sin(t * 2.2) * 0.08;
-
-      const duckDrift = Math.max(0, t - gagSec + 4);
-      duck.position.set(
-        1.6 + Math.sin(t * 1.4) * 0.3,
-        0.15 + surgeFactor * 0.4 + Math.sin(t * 3.0) * 0.12,
-        -2.0 - duckDrift * 1.1
+      // Bottom status
+      ctx.fillStyle = gridTripped ? '#FF8A80' : '#80C7FF';
+      ctx.font = '900 16px system-ui, sans-serif';
+      ctx.fillText(
+        gridTripped
+          ? 'UTILITY COMPANY REMOTELY CUT YOUR POWER!'
+          : 'DRAWING 1.2 GW (1 NUCLEAR PLANT)',
+        0,
+        104
       );
-      duck.rotation.y = Math.sin(t * 1.2) * 0.4;
+      ctx.restore();
 
-      for (let i = 1; i < props.length; i++) {
-        const c = props[i];
-        c.position.y = -0.1 + surgeFactor * 0.9 + Math.sin(t * 2.6 + c.userData.phase) * 0.3;
+      // 2. Giant Stylized 2D Death Laser Cannon (left)
+      ctx.save();
+      ctx.translate(420, STAGE2D_FLOOR_Y);
+      // Gantry legs
+      ctx.strokeStyle = '#37474f';
+      ctx.lineWidth = 14;
+      ctx.beginPath();
+      ctx.moveTo(-110, 0);
+      ctx.lineTo(-40, -210);
+      ctx.moveTo(110, 0);
+      ctx.lineTo(40, -210);
+      ctx.stroke();
+
+      // Cannon barrel tilted upward
+      ctx.save();
+      ctx.translate(0, -220);
+      ctx.rotate(-0.32);
+      ctx.fillStyle = '#546e7a';
+      ctx.strokeStyle = '#222633';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.roundRect(-140, -55, 310, 110, 22);
+      ctx.fill();
+      ctx.stroke();
+      // Emitter dish
+      ctx.fillStyle = gridTripped ? '#455a64' : '#80C7FF';
+      ctx.beginPath();
+      ctx.ellipse(172, 0, 22, 54, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // Warning stripes
+      ctx.fillStyle = '#ffb300';
+      ctx.fillRect(-60, -55, 24, 110);
+      ctx.fillRect(-15, -55, 24, 110);
+      ctx.restore();
+      ctx.restore();
+
+      // Thick power cable snaking from laser toward wall outlet
+      ctx.strokeStyle = '#222633';
+      ctx.lineWidth = 12;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(510, STAGE2D_FLOOR_Y - 120);
+      ctx.bezierCurveTo(700, STAGE2D_FLOOR_Y - 20, 880, STAGE2D_FLOOR_Y - 10, 1080, STAGE2D_FLOOR_Y - 140);
+      ctx.stroke();
+
+      // 3. Standard 120V Wall Outlet + Lukewarm Toaster Gag (right-center)
+      ctx.save();
+      ctx.translate(1310, STAGE2D_FLOOR_Y);
+      // Wall pillar
+      ctx.fillStyle = '#cfd8dc';
+      ctx.strokeStyle = '#222633';
+      ctx.lineWidth = 4;
+      ctx.fillRect(-65, -340, 130, 340);
+      ctx.strokeRect(-65, -340, 130, 340);
+      // Tiny 120V outlet plate
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-26, -220, 52, 76);
+      ctx.strokeRect(-26, -220, 52, 76);
+      ctx.fillStyle = '#222633';
+      ctx.fillRect(-10, -200, 6, 16);
+      ctx.fillRect(4, -200, 6, 16);
+      ctx.font = '800 13px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('120V OUTLET', 0, -234);
+
+      // Electric sparks when tripped
+      if (gridTripped && !showToasterGag) {
+        ctx.strokeStyle = '#ffd54f';
+        ctx.lineWidth = 4;
+        for (let i = 0; i < 4; i++) {
+          const ang = t * 14 + i * 1.6;
+          ctx.beginPath();
+          ctx.moveTo(-26, -182);
+          ctx.lineTo(-26 + Math.cos(ang) * 42, -182 + Math.sin(ang) * 42);
+          ctx.stroke();
+        }
       }
 
-      updateCameraDirector(ctx.camera, t, cameraSchedule, watt.root.position, props);
+      // Lukewarm Toaster on side table
+      if (showToasterGag) {
+        ctx.fillStyle = '#8d6e63';
+        ctx.fillRect(95, -90, 110, 90);
+        ctx.strokeRect(95, -90, 110, 90);
+        ctx.fillStyle = '#eceff1';
+        ctx.beginPath();
+        ctx.roundRect(114, -142, 72, 52, 10);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#222633';
+        ctx.font = '800 13px system-ui, sans-serif';
+        ctx.fillText('TOASTER', 150, -112);
+      }
+      ctx.restore();
+
+      // 4. Watt Protagonist holding giant laser plug
+      let pose: Watt2DPose = 'explain';
+      if (showToasterGag) pose = 'deadpan';
+      else if (gridTripped) pose = 'shocked';
+
+      drawWatt2D(ctx, {
+        x: 1030,
+        y: STAGE2D_FLOOR_Y,
+        s: 360,
+        t,
+        pose,
+        outfit: 'villain',
+      });
+
+      // Comically oversized 3-prong industrial plug next to Watt's right hand
+      ctx.save();
+      ctx.translate(1135, STAGE2D_FLOOR_Y - 148 + Math.sin(t * 4) * 6);
+      ctx.fillStyle = '#ff7043';
+      ctx.strokeStyle = '#222633';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.roundRect(-28, -28, 56, 56, 10);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#cfd8dc';
+      ctx.fillRect(28, -16, 26, 10);
+      ctx.strokeRect(28, -16, 26, 10);
+      ctx.fillRect(28, 6, 26, 10);
+      ctx.strokeRect(28, 6, 26, 10);
+      ctx.restore();
     },
-    [cameraSchedule, surgeSec, gagSec]
+    [tripSec, outletSec]
   );
 
   return (
-    <PS1Stage
-      skyColor={skyColor}
-      fogColor={fogColor}
-      hemisphereIntensity={1.6}
-      crtOpacity={0.18}
-      onBuildScene={onBuildScene}
-      onUpdateFrame={onUpdateFrame}
+    <Stage2D
+      skyTop={skyColor}
+      skyBottom={fogColor}
+      horizonColor="#5c7ca8"
+      floorColor="#e2ebf5"
+      cameraSchedule={cameraSchedule}
+      onDrawScene={onDrawScene}
     >
       <AudioTrack audioPath={audioPath} words={words} sfxCues={sfxCues} />
-      <ChapterCard chapterNumber={3} title={title} />
+      <ChapterCard chapterNumber={3} title={title} accentColor="#FF5252" />
       <TelemetryHUD words={words} side="right" widgets={hudWidgets} />
-      <KineticCaptions words={words} fallbackLine="Mile-high megatsunamis surge toward the poles." />
-    </PS1Stage>
+      <KineticCaptions words={words} fallbackLine="Your death ray trips a neighborhood breaker." />
+    </Stage2D>
   );
 };

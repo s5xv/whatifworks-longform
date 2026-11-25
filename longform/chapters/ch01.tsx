@@ -1,25 +1,24 @@
-import React, { useCallback, useMemo, useRef } from 'react';
-import * as THREE from 'three';
+import React, { useCallback, useMemo } from 'react';
 import { useVideoConfig } from 'remotion';
-import { PS1Stage, PS1SceneContext } from '../components/PS1Stage';
+import { Stage2D, STAGE2D_FLOOR_Y } from '../components/Stage2D';
+import { drawWatt2D, Watt2DPose } from '../components/Watt2D';
+import {
+  createCamera2DSchedule,
+  cueCamera2DAt,
+  Camera2DState,
+} from '../components/camera2D';
 import { KineticCaptions } from '../components/KineticCaptions';
 import { ChapterCard } from '../components/ChapterCard';
 import { TelemetryHUD, TelemetryWidgetSpec } from '../components/TelemetryHUD';
 import { AudioTrack, buildSfxCue } from '../components/AudioTrack';
 import { useChapterWords } from '../components/useChapterWords';
-import { createWatt, WattInstance } from '../three/watt-model';
-import {
-  createCameraSchedule,
-  cueCameraAt,
-  updateCameraDirector,
-} from '../three/cameraDirector';
 import { cueAt } from '../three/timing';
 import { ChapterComponentProps } from './index';
 
 export const Chapter01: React.FC<ChapterComponentProps> = ({
-  title = 'Chapter 1: The Instant Brake',
+  title = 'Chapter 1: The Secret Lair Problem',
   skyColor = '#5da2e8',
-  fogColor = '#84bcf2',
+  fogColor = '#b7dcff',
   audioPath,
   wordsPath,
   words: wordsProp = [],
@@ -29,244 +28,382 @@ export const Chapter01: React.FC<ChapterComponentProps> = ({
   const loadedWords = useChapterWords(wordsPath);
   const words = wordsProp.length > 0 ? wordsProp : loadedWords;
 
-  const stopSec = useMemo(() => cueAt(words, 'stopped', 2.0), [words]);
-  const poleSec = useMemo(() => cueAt(words, 'North', Math.max(40, durationSec - 12)), [words, durationSec]);
+  const costSec = useMemo(() => cueAt(words, 'billion', 14.0), [words]);
+  const truckSec = useMemo(() => cueAt(words, 'trucks', 24.0), [words]);
+  const thermalSec = useMemo(() => cueAt(words, 'thermal', 36.0), [words]);
+  const spotSec = useMemo(() => cueAt(words, 'forty-eight', 44.0), [words]);
+  const permitSec = useMemo(() => cueAt(words, 'permit', Math.max(46, durationSec - 9)), [words, durationSec]);
 
   const cameraSchedule = useMemo(
     () =>
-      createCameraSchedule(
-        durationSec,
-        [
-          cueCameraAt(words, 'suddenly', 'wide', 7.0, { fallbackStartSec: 0 }),
-          cueCameraAt(words, 'equator', 'dollyIn', 8.0, { fallbackStartSec: 8.0 }),
-          cueCameraAt(words, 'inertia', 'orbit', 8.0, { fallbackStartSec: 18.0 }),
-          cueCameraAt(words, 'bedrock', 'impactShake', 6.5, { fallbackStartSec: 28.0, intensity: 1.15 }),
-          cueCameraAt(words, 'North', 'closeup', 9.0, { fallbackStartSec: Math.max(38, durationSec - 12) }),
-        ],
-        8.0
-      ),
-    [durationSec, words]
+      createCamera2DSchedule(durationSec, [
+        cueCamera2DAt(words, 'supervillain', 'wide', 5.5, { fallbackStartSec: 0 }),
+        cueCamera2DAt(words, 'volcano', 'zoomIn', 5.5, {
+          fallbackStartSec: 7.0,
+          focusX: 620,
+          focusY: 600,
+          zoom: 1.2,
+        }),
+        cueCamera2DAt(words, 'trucks', 'pan', 6.0, {
+          fallbackStartSec: truckSec,
+          panX: 110,
+        }),
+        cueCamera2DAt(words, 'thermal', 'whipPan', 5.5, {
+          fallbackStartSec: thermalSec,
+          focusX: 660,
+          focusY: 500,
+          zoom: 1.16,
+        }),
+        cueCamera2DAt(words, 'forty-eight', 'impactShake', 4.8, {
+          fallbackStartSec: spotSec,
+          intensity: 1.15,
+        }),
+        cueCamera2DAt(words, 'inspector', 'zoomIn', 6.5, {
+          fallbackStartSec: permitSec - 3,
+          focusX: 1180,
+          focusY: 660,
+          zoom: 1.22,
+        }),
+      ]),
+    [durationSec, words, truckSec, thermalSec, spotSec, permitSec]
   );
 
   const sfxCues = useMemo(
     () => [
-      buildSfxCue(words, 'stopped', 'whoosh', { fallbackSec: 2.0, volume: 0.6 }),
-      buildSfxCue(words, 'bedrock', 'impact', { fallbackSec: 28.0, volume: 0.72 }),
-      buildSfxCue(words, 'North', 'chime', { fallbackSec: Math.max(38, durationSec - 12), volume: 0.55 }),
+      buildSfxCue(words, 'supervillain', 'whoosh', { fallbackSec: 1.2, volume: 0.55 }),
+      buildSfxCue(words, 'billion', 'chime', { fallbackSec: costSec, volume: 0.52 }),
+      buildSfxCue(words, 'forty-eight', 'alarm', { fallbackSec: spotSec, volume: 0.68 }),
+      buildSfxCue(words, 'permit', 'impact', { fallbackSec: permitSec, volume: 0.72 }),
     ],
-    [words, durationSec]
+    [words, costSec, spotSec, permitSec]
   );
 
   const hudWidgets = useMemo<TelemetryWidgetSpec[]>(
     () => [
       {
-        id: 'rotation',
-        kind: 'gauge',
-        label: 'Earth Spin',
-        unit: 'mph',
-        min: 0,
-        max: 1040,
-        decimals: 0,
-        triggerSec: 0.3,
-        keyframes: [
-          { timeSec: 0.3, value: 1040, severity: 'normal' },
-          { word: 'stopped', timeSec: 2.2, value: 0, severity: 'critical' },
-          { timeSec: durationSec - 1, value: 0, severity: 'critical' },
-        ],
-      },
-      {
-        id: 'inertia',
+        id: 'lair-budget',
         kind: 'counter',
-        label: 'Your Velocity',
-        unit: 'mph',
+        label: 'LAIR BUDGET',
+        prefix: '$',
+        unit: 'B',
         min: 0,
-        max: 1100,
-        decimals: 0,
-        triggerSec: 1.0,
+        max: 2.0,
+        decimals: 1,
+        triggerSec: 0.6,
         keyframes: [
-          { timeSec: 1.0, value: 0, severity: 'normal' },
-          { word: 'supersonic', timeSec: 4.5, value: 1040, severity: 'critical' },
-          { timeSec: durationSec - 1, value: 1040, severity: 'critical' },
+          { timeSec: 0.6, value: 0.1, severity: 'normal' },
+          { timeSec: costSec, value: 1.8, severity: 'warn' },
         ],
       },
       {
-        id: 'anchor',
+        id: 'stealth-pct',
+        kind: 'gauge',
+        label: 'STEALTH',
+        unit: '%',
+        min: 0,
+        max: 100,
+        decimals: 0,
+        triggerSec: 1.2,
+        keyframes: [
+          { timeSec: 1.2, value: 100, severity: 'normal' },
+          { timeSec: truckSec, value: 45, severity: 'warn' },
+          { timeSec: spotSec, value: 0, severity: 'critical' },
+        ],
+      },
+      {
+        id: 'thermal-badge',
         kind: 'badge',
-        label: 'Bedrock Lock',
-        badgeText: 'UNBOLTED',
-        severity: 'warn',
-        triggerSec: 2.5,
+        label: 'THERMAL SATELLITE',
+        badgeText: 'LOCKED (48H)',
+        severity: 'critical',
+        triggerSec: spotSec,
       },
     ],
-    [durationSec]
+    [costSec, truckSec, spotSec]
   );
 
-  const objectsRef = useRef<{
-    watt: WattInstance;
-    movingProps: THREE.Object3D[];
-    mug: THREE.Group;
-    signPost: THREE.Group;
-  } | null>(null);
+  const onDrawScene = useCallback(
+    (ctx: CanvasRenderingContext2D, t: number, _frame: number, _dur: number, _cam: Camera2DState) => {
+      const thermalAlert = t >= thermalSec;
+      const spotted = t >= spotSec;
+      const showPermitGag = t >= permitSec - 1.5;
 
-  const onBuildScene = useCallback((ctx: PS1SceneContext) => {
-    const { scene, ps1 } = ctx;
+      // 1. Bright 2D Cutaway Volcano Blueprint (left-center)
+      ctx.save();
+      ctx.translate(640, STAGE2D_FLOOR_Y);
 
-    // Bright coastal city plaza: grass strip, concrete boardwalk, distant ocean
-    const grassMat = ps1(new THREE.MeshLambertMaterial({ color: 0x76a85c, flatShading: true }));
-    const grass = new THREE.Mesh(new THREE.PlaneGeometry(50, 50, 14, 14), grassMat);
-    grass.rotation.x = -Math.PI / 2;
-    scene.add(grass);
+      // Volcano silhouette cone
+      ctx.beginPath();
+      ctx.moveTo(-410, 0);
+      ctx.lineTo(-140, -470);
+      ctx.lineTo(140, -470);
+      ctx.lineTo(410, 0);
+      ctx.closePath();
+      ctx.fillStyle = '#5c4d4d';
+      ctx.fill();
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = '#222633';
+      ctx.stroke();
 
-    const roadMat = ps1(new THREE.MeshLambertMaterial({ color: 0x9aa6b8, flatShading: true }));
-    const road = new THREE.Mesh(new THREE.BoxGeometry(50, 0.08, 6.5), roadMat);
-    road.position.set(0, 0.02, 0.2);
-    scene.add(road);
+      // Crater rim lava glow
+      ctx.beginPath();
+      ctx.ellipse(0, -468, 138, 22, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#ff7043';
+      ctx.fill();
+      ctx.strokeStyle = '#222633';
+      ctx.lineWidth = 4;
+      ctx.stroke();
 
-    const oceanMat = ps1(new THREE.MeshLambertMaterial({ color: 0x3a8be0, flatShading: true }));
-    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(60, 26), oceanMat);
-    ocean.rotation.x = -Math.PI / 2;
-    ocean.position.set(0, 0.01, -18);
-    scene.add(ocean);
+      // Blueprint Cutaway Cross-Section Panel inside the Volcano
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(-250, -390, 500, 355, 18);
+      ctx.fillStyle = thermalAlert ? '#24345a' : '#1b4988';
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#80C7FF';
+      ctx.stroke();
+      ctx.clip();
 
-    // Distant low-poly city skyline along z = -6.5 .. -10
-    const bldgColors = [0xcad6e8, 0xb0c2db, 0xdce4f0, 0xa2b6d1];
-    for (let i = 0; i < 12; i++) {
-      const w = 1.4 + (i % 3) * 0.5;
-      const h = 2.6 + ((i * 7) % 5) * 1.1;
-      const b = new THREE.Mesh(
-        new THREE.BoxGeometry(w, h, 1.6),
-        ps1(new THREE.MeshLambertMaterial({ color: bldgColors[i % bldgColors.length], flatShading: true }))
-      );
-      b.position.set(-14 + i * 2.55, h / 2, -6.5 - (i % 2) * 2.2);
-      scene.add(b);
-    }
-
-    const watt = createWatt({ ps1Shader: ps1 });
-    watt.setPosition(0, 0, 0);
-    scene.add(watt.root);
-
-    // Bolted Equator sign post (stays anchored to bedrock)
-    const signPost = new THREE.Group();
-    const poleMat = ps1(new THREE.MeshLambertMaterial({ color: 0x5c6675, flatShading: true }));
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.2, 6), poleMat);
-    pole.position.y = 1.1;
-    signPost.add(pole);
-    const board = new THREE.Mesh(
-      new THREE.BoxGeometry(1.1, 0.48, 0.08),
-      ps1(new THREE.MeshLambertMaterial({ color: 0xffca28, flatShading: true }))
-    );
-    board.position.set(0, 2.0, 0);
-    signPost.add(board);
-    signPost.position.set(-2.1, 0, -1.6);
-    scene.add(signPost);
-
-    // Comedy gag: oversized coffee mug that launches east
-    const mug = new THREE.Group();
-    const mugBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.22, 0.2, 0.36, 8),
-      ps1(new THREE.MeshLambertMaterial({ color: 0xfff5e6, flatShading: true }))
-    );
-    const coffeeTop = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.19, 0.19, 0.04, 8),
-      ps1(new THREE.MeshLambertMaterial({ color: 0x4e342e, flatShading: true }))
-    );
-    coffeeTop.position.y = 0.17;
-    mug.add(mugBody, coffeeTop);
-    mug.position.set(1.1, 1.05, -0.4);
-    mug.userData.baseX = 1.1;
-    mug.userData.baseY = 1.05;
-    mug.userData.baseZ = -0.4;
-    scene.add(mug);
-
-    // Unbolted street props (benches, crates, cones, lamp) staged behind z <= -1.2
-    const movingProps: THREE.Object3D[] = [mug];
-    const propColors = [0xff8a65, 0x4fc3f7, 0xffd54f, 0xaed581, 0xe57373];
-    for (let i = 0; i < 8; i++) {
-      const size = 0.42 + (i % 3) * 0.15;
-      const box = new THREE.Mesh(
-        new THREE.BoxGeometry(size * 1.4, size, size),
-        ps1(new THREE.MeshLambertMaterial({ color: propColors[i % propColors.length], flatShading: true }))
-      );
-      const bx = -7.0 + i * 2.1;
-      const bz = -1.6 - (i % 3) * 1.1;
-      box.position.set(bx, size / 2, bz);
-      box.userData.baseX = bx;
-      box.userData.baseY = size / 2;
-      box.userData.baseZ = bz;
-      box.userData.speed = 3.2 + (i % 4) * 1.1;
-      box.userData.phase = i * 0.8;
-      scene.add(box);
-      movingProps.push(box);
-    }
-
-    objectsRef.current = { watt, movingProps, mug, signPost };
-  }, []);
-
-  const onUpdateFrame = useCallback(
-    (ctx: PS1SceneContext, t: number) => {
-      const objs = objectsRef.current;
-      if (!objs) return;
-      const { watt, movingProps, mug } = objs;
-
-      if (t < stopSec) {
-        watt.setFace('smug');
-        watt.setIdea(0);
-        watt.setPosition(0, 0, 0);
-        watt.idle(t);
-      } else if (t < poleSec) {
-        const dt = t - stopSec;
-        watt.setFace(dt < 6 ? 'scared' : 'confused');
-        const leanX = Math.min(0.65, dt * 0.25) * Math.sin(t * 2.2) * 0.25 + 0.25;
-        watt.setPosition(leanX, 0, Math.abs(Math.sin(t * 5.0)) * 0.18);
-        watt.panic(t);
-      } else {
-        watt.setFace('deadpan');
-        watt.setPosition(0, 0, 0);
-        watt.root.rotation.y = (t - poleSec) * 0.9;
-        watt.setPose('deadpan', t);
+      // Blueprint grid lines
+      ctx.strokeStyle = 'rgba(128, 199, 255, 0.22)';
+      ctx.lineWidth = 1.5;
+      for (let gx = -240; gx <= 240; gx += 40) {
+        ctx.beginPath();
+        ctx.moveTo(gx, -390);
+        ctx.lineTo(gx, -35);
+        ctx.stroke();
+      }
+      for (let gy = -380; gy <= -40; gy += 40) {
+        ctx.beginPath();
+        ctx.moveTo(-250, gy);
+        ctx.lineTo(250, gy);
+        ctx.stroke();
       }
 
-      const launchDt = Math.max(0, t - stopSec);
-      for (const p of movingProps) {
-        if (p === mug) {
-          const mx = mug.userData.baseX + launchDt * 7.5;
-          mug.position.set(
-            ((mx + 12) % 24) - 12,
-            mug.userData.baseY + Math.sin(t * 6) * 0.15,
-            mug.userData.baseZ
-          );
-          mug.rotation.z = -launchDt * 4.5;
-        } else {
-          const spd = p.userData.speed || 3.5;
-          const rawX = p.userData.baseX + launchDt * spd;
-          const wrappedX = ((rawX + 12) % 24) - 12;
-          p.position.set(
-            wrappedX,
-            p.userData.baseY + (launchDt > 0 ? Math.abs(Math.sin(t * 3 + p.userData.phase)) * 0.8 : 0),
-            p.userData.baseZ
-          );
-          p.rotation.z = -launchDt * 2.2;
+      // Room 1: Control Room (top)
+      ctx.strokeStyle = '#9be7ff';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(-210, -350, 200, 125);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 15px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('EVIL CONTROL ROOM', -110, -324);
+      // Monitor screens
+      ctx.fillStyle = '#69F0AE';
+      ctx.fillRect(-185, -305, 58, 36);
+      ctx.fillStyle = '#ffd54f';
+      ctx.fillRect(-115, -305, 58, 36);
+
+      // Room 2: Ventilation Shafts & HVAC
+      ctx.strokeStyle = '#9be7ff';
+      ctx.strokeRect(10, -350, 200, 125);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('HVAC ($40M/YR)', 110, -324);
+      // Spinning fan blades
+      ctx.save();
+      ctx.translate(110, -270);
+      ctx.rotate(t * 7);
+      ctx.strokeStyle = '#80C7FF';
+      ctx.lineWidth = 5;
+      for (let b = 0; b < 4; b++) {
+        ctx.rotate(Math.PI / 2);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(28, 0);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Room 3: Shark Tank (bottom left)
+      ctx.fillStyle = 'rgba(41, 182, 246, 0.45)';
+      ctx.fillRect(-210, -205, 220, 140);
+      ctx.strokeStyle = '#80C7FF';
+      ctx.strokeRect(-210, -205, 220, 140);
+      // Swimming shark fin
+      const finX = -150 + ((t * 55) % 120);
+      ctx.fillStyle = '#b0bec5';
+      ctx.beginPath();
+      ctx.moveTo(finX, -135);
+      ctx.lineTo(finX + 18, -162);
+      ctx.lineTo(finX + 30, -135);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('SHARK TANK', -100, -180);
+
+      // Room 4: Generator Core (bottom right - glowing hot on thermal!)
+      const corePulse = 0.5 + 0.5 * Math.sin(t * 8);
+      ctx.fillStyle = thermalAlert
+        ? `rgba(255, 82, 82, ${0.42 + corePulse * 0.25})`
+        : 'rgba(255, 183, 77, 0.35)';
+      ctx.fillRect(30, -205, 180, 140);
+      ctx.strokeStyle = thermalAlert ? '#FF5252' : '#FFB74D';
+      ctx.strokeRect(30, -205, 180, 140);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('GENERATOR CORE', 120, -180);
+      ctx.fillStyle = thermalAlert ? '#FF8A80' : '#FFE082';
+      ctx.font = '900 18px system-ui, sans-serif';
+      ctx.fillText(thermalAlert ? 'HEAT: 98 MW!' : 'POWER: 14 MW', 120, -120);
+
+      ctx.restore();
+
+      // Rising thermal heat squiggles once thermal beat starts
+      if (thermalAlert) {
+        ctx.strokeStyle = 'rgba(255, 82, 82, 0.85)';
+        ctx.lineWidth = 4;
+        for (let i = -1; i <= 1; i++) {
+          const hx = i * 55;
+          const phase = (t * 2 + i) % 1;
+          ctx.beginPath();
+          ctx.moveTo(hx, -485 - phase * 110);
+          ctx.quadraticCurveTo(hx + 16, -515 - phase * 110, hx, -545 - phase * 110);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      // 2. Concrete Mixer Trucks driving up near volcano base during construction beat
+      if (t >= costSec - 2 && t < spotSec + 2) {
+        for (let i = 0; i < 3; i++) {
+          const tx = 140 + ((t * 95 + i * 165) % 420);
+          const ty = STAGE2D_FLOOR_Y - 12;
+          ctx.save();
+          ctx.translate(tx, ty);
+          ctx.fillStyle = '#ffb300';
+          ctx.strokeStyle = '#222633';
+          ctx.lineWidth = 3;
+          ctx.fillRect(-34, -34, 64, 24);
+          ctx.strokeRect(-34, -34, 64, 24);
+          // Mixer drum
+          ctx.beginPath();
+          ctx.ellipse(-6, -42, 24, 15, -0.18, 0, Math.PI * 2);
+          ctx.fillStyle = '#eceff1';
+          ctx.fill();
+          ctx.stroke();
+          // Wheels
+          ctx.fillStyle = '#222633';
+          ctx.beginPath();
+          ctx.arc(-18, -6, 8, 0, Math.PI * 2);
+          ctx.arc(16, -6, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
         }
       }
 
-      updateCameraDirector(ctx.camera, t, cameraSchedule, watt.root.position, movingProps);
+      // 3. Orbiting Infrared Spy Satellite + Thermal Scan Beam
+      const satX = 560 + Math.sin(t * 0.9) * 140;
+      const satY = 140;
+      ctx.save();
+      ctx.translate(satX, satY);
+      // Scan cone
+      const beamAlpha = thermalAlert ? 0.34 : 0.16;
+      ctx.beginPath();
+      ctx.moveTo(0, 18);
+      ctx.lineTo(-170, STAGE2D_FLOOR_Y - satY - 220);
+      ctx.lineTo(220, STAGE2D_FLOOR_Y - satY - 220);
+      ctx.closePath();
+      ctx.fillStyle = spotted
+        ? `rgba(255, 82, 82, ${beamAlpha})`
+        : `rgba(105, 240, 174, ${beamAlpha})`;
+      ctx.fill();
+
+      // Satellite body + solar wings
+      ctx.fillStyle = '#1e88e5';
+      ctx.strokeStyle = '#0d162b';
+      ctx.lineWidth = 3;
+      ctx.fillRect(-76, -12, 46, 24);
+      ctx.strokeRect(-76, -12, 46, 24);
+      ctx.fillRect(30, -12, 46, 24);
+      ctx.strokeRect(30, -12, 46, 24);
+      ctx.fillStyle = '#cfd8dc';
+      ctx.fillRect(-26, -18, 52, 36);
+      ctx.strokeRect(-26, -18, 52, 36);
+      // Red thermal eye
+      ctx.beginPath();
+      ctx.arc(0, 12, 8, 0, Math.PI * 2);
+      ctx.fillStyle = spotted ? '#FF1744' : '#69F0AE';
+      ctx.fill();
+      ctx.restore();
+
+      if (spotted) {
+        ctx.save();
+        ctx.translate(640, 320);
+        ctx.fillStyle = 'rgba(183, 28, 28, 0.92)';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(-145, -24, 290, 48, 10);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 18px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('TARGET LOCKED: VOLCANO #4', 0, 6);
+        ctx.restore();
+      }
+
+      // 4. Watt Protagonist in Villain Cape
+      let pose: Watt2DPose = 'explain';
+      if (t < 2.2) pose = 'idle';
+      else if (showPermitGag) pose = 'deadpan';
+      else if (spotted) pose = 'shocked';
+
+      drawWatt2D(ctx, {
+        x: 1180,
+        y: STAGE2D_FLOOR_Y,
+        s: 360,
+        t,
+        pose,
+        outfit: 'villain',
+        flip: -1,
+      });
+
+      // 5. Comedy Gag: Red "ZONING VIOLATION: SHARK TANK" Fine Stamp
+      if (showPermitGag) {
+        ctx.save();
+        ctx.translate(1335, 575);
+        ctx.rotate(-0.14);
+        ctx.fillStyle = '#fffde7';
+        ctx.strokeStyle = '#222633';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(-140, -90, 280, 180, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#d32f2f';
+        ctx.strokeStyle = '#d32f2f';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(-115, -55, 230, 74);
+        ctx.font = '900 22px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('CODE VIOLATION', 0, -24);
+        ctx.font = '800 16px system-ui, sans-serif';
+        ctx.fillText('NO SHARK PERMIT', 0, 4);
+
+        ctx.fillStyle = '#222633';
+        ctx.font = '800 17px system-ui, sans-serif';
+        ctx.fillText('FINE: $4,500', 0, 54);
+        ctx.restore();
+      }
     },
-    [cameraSchedule, stopSec, poleSec]
+    [costSec, thermalSec, spotSec, permitSec]
   );
 
   return (
-    <PS1Stage
-      skyColor={skyColor}
-      fogColor={fogColor}
-      hemisphereIntensity={1.6}
-      crtOpacity={0.18}
-      onBuildScene={onBuildScene}
-      onUpdateFrame={onUpdateFrame}
+    <Stage2D
+      skyTop={skyColor}
+      skyBottom={fogColor}
+      horizonColor="#4da86b"
+      floorColor="#dce8f2"
+      cameraSchedule={cameraSchedule}
+      onDrawScene={onDrawScene}
     >
       <AudioTrack audioPath={audioPath} words={words} sfxCues={sfxCues} />
-      <ChapterCard chapterNumber={1} title={title} />
+      <ChapterCard chapterNumber={1} title={title} accentColor="#FF7043" />
       <TelemetryHUD words={words} side="right" widgets={hudWidgets} />
-      <KineticCaptions words={words} fallbackLine="You would instantly fly east at 1,040 mph." />
-    </PS1Stage>
+      <KineticCaptions words={words} fallbackLine="Your biggest enemy is your electric bill." />
+    </Stage2D>
   );
 };
